@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { chromium } from 'playwright';
 
-const PORT = '8123';
+const PORT = process.env.PORT ?? '8123';
 const CACHED_CHROME = `${homedir()}/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome`;
 const { maps } = JSON.parse(readFileSync(new URL('../data/maps.json', import.meta.url)));
 
@@ -62,6 +62,18 @@ try {
 
   assert.equal(await page.locator('#score').textContent(), 'No answers yet');
   assert.equal(await page.locator('#memory').textContent(), 'Memory: new');
+  assert.equal(await page.locator('#memory').getAttribute('class'), 'new');
+  assert.equal(await page.locator('#counts .solid').count(), 1, 'counts are colour coded');
+
+  assert.equal(await page.locator('#help-text').isVisible(), false, 'help starts hidden');
+  await page.locator('#help').hover();
+  assert.equal(await page.locator('#help-text').isVisible(), true, 'hovering ? shows help');
+  await page.mouse.move(0, 0);
+  await page.locator('#help').focus();
+  assert.equal(await page.locator('#help-text').isVisible(), true, 'keyboard focus shows help');
+  await page.locator('#help').blur();
+  console.log('ok: the question mark shows help on hover and focus');
+
   const firstCallout = await page.locator('#prompt').textContent();
   await clickInside(page, map);
   await page.locator('#status', { hasText: 'Correct' }).waitFor();
@@ -136,6 +148,9 @@ try {
   });
   await phone.goto(`http://localhost:${PORT}/`);
   await phone.locator('#map g').first().waitFor();
+  await phone.locator('#help').click();
+  const tip = await phone.locator('#help-text').boundingBox();
+  assert.ok(tip && tip.x >= 0 && tip.x + tip.width <= 390, 'help fits a phone screen');
   const scroll = await phone.evaluate(() => document.documentElement.scrollWidth);
   assert.ok(scroll <= 390, `page scrolls sideways at 390 px (${scroll})`);
   await clickInside(phone, map);

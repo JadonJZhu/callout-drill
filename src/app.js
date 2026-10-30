@@ -1,5 +1,5 @@
 // Page wiring: holds the quiz state, reacts to clicks and keys, and redraws.
-import { MAX_BOX, freshProgress, judgeClick, memoryCounts, pickNext, recordAnswer, rollingScore } from './quiz.js';
+import { MAX_BOX, freshProgress, judgeClick, memoryCounts, memoryState, pickNext, recordAnswer, rollingScore } from './quiz.js';
 import { mapMarkup, toGrid } from './map.js';
 
 const CORRECT_PAUSE_MS = 900;
@@ -50,9 +50,9 @@ function scoreText() {
   return `Last ${score.count}: ${Math.round(score.accuracy * 100)}% correct, median ${(score.medianMs / 1000).toFixed(1)} s`;
 }
 
-function countsText() {
+function countsMarkup() {
   const counts = memoryCounts(map.rooms, progress);
-  return `New ${counts.new}, learning ${counts.learning}, solid ${counts.solid}`;
+  return `<span class="new">New ${counts.new}</span>, <span class="learning">learning ${counts.learning}</span>, <span class="solid">solid ${counts.solid}</span>`;
 }
 
 function statusText() {
@@ -71,10 +71,11 @@ function draw() {
 
   $('prompt').textContent = studying ? 'Study mode' : asked.name;
   $('memory').textContent = studying ? '' : memoryText();
+  $('memory').className = memoryState(progress.callouts[asked.name]);
   $('status').textContent = studying ? 'Quiz paused' : statusText();
   $('status').className = !studying && phase === 'correct' ? 'good' : !studying && phase === 'review' ? 'bad' : '';
   $('score').textContent = scoreText();
-  $('counts').textContent = countsText();
+  $('counts').innerHTML = countsMarkup();
 }
 
 function ask() {

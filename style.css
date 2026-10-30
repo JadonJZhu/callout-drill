@@ -4,6 +4,7 @@
   --accent: #ff4655;
   --pass: #3ddc97;
   --warn: #f5b841;
+  --new: #7fb2e5;
   --room: #223240;
   --spawn: #33424f;
   --line: #64747f;
@@ -51,8 +52,28 @@ main { display: flex; flex-direction: column; align-items: center; }
 #status { font-size: 16px; }
 #status.good { color: var(--pass); }
 #status.bad { color: var(--accent); }
-#memory { font-size: 16px; color: var(--warn); }
-#tally { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 24px; padding-bottom: 8px; font-size: 14px; opacity: 0.8; }
+#memory { font-size: 16px; }
+#tally { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 24px; padding-bottom: 8px; font-size: 14px; }
+.new { color: var(--new); }
+.learning { color: var(--warn); }
+.solid { color: var(--pass); }
+
+.help { position: relative; }
+#help-text {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1;
+  width: 300px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.help:hover #help-text, #help:focus + #help-text { display: block; }
 
 /* Fits the viewport: as wide as the page allows, and short enough to leave room for the header and tally. */
 #map {
@@ -90,4 +111,6 @@ main { display: flex; flex-direction: column; align-items: center; }
   body { padding: 8px 4px; }
   #prompt { font-size: 26px; }
   .controls { margin-left: 0; }
+  .help { position: static; }
+  #help-text { left: 8px; right: 8px; width: auto; top: auto; }
 }

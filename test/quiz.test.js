@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshProgress, judgeClick, memoryCounts, pickNext, recordAnswer, rollingScore, roomAt } from '../src/quiz.js';
+import { freshProgress, judgeClick, memoryCounts, memoryState, pickNext, recordAnswer, rollingScore, roomAt } from '../src/quiz.js';
 
 // Small seeded generator (mulberry32), so random tests give the same result every run.
 function seeded(seed) {
@@ -151,4 +151,10 @@ test('rollingScore: only the last 20 answers count, so old misses roll off', () 
 test('memoryCounts: new, learning and solid (box 3 and up), without spawns', () => {
   const p = play([['Box', true], ['Box', true], ['Box', true], ['Ell', false]]);
   assert.deepEqual(memoryCounts([spawn, box, ell, rooms[0]], p), { new: 1, learning: 1, solid: 1 });
+});
+
+test('memoryState: new with no entry, learning below box 3, solid from box 3', () => {
+  assert.equal(memoryState(undefined), 'new');
+  assert.equal(memoryState({ box: 2 }), 'learning');
+  assert.equal(memoryState({ box: 3 }), 'solid');
 });

@@ -65,13 +65,15 @@ export function rollingScore(recent) {
   };
 }
 
+export function memoryState(seen) {
+  if (!seen) return 'new';
+  return seen.box >= SOLID_BOX ? 'solid' : 'learning';
+}
+
 export function memoryCounts(rooms, progress) {
   const counts = { new: 0, learning: 0, solid: 0 };
   for (const room of rooms.filter((each) => each.kind !== 'spawn')) {
-    const seen = progress.callouts[room.name];
-    if (!seen) counts.new += 1;
-    else if (seen.box >= SOLID_BOX) counts.solid += 1;
-    else counts.learning += 1;
+    counts[memoryState(progress.callouts[room.name])] += 1;
   }
   return counts;
 }
