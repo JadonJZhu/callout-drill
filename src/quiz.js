@@ -1,7 +1,10 @@
 // Pure quiz logic. No DOM here, and randomness is passed in, so all of it can be tested in Node.
 
 const CLICK_TOLERANCE = 1.5; // grid units; forgives a click that lands on the room's outline
-const UNSEEN_WEIGHT = 3;
+const GAPS = [2, 4, 8, 16, 32]; // answers until a callout comes back, by memory box; each box doubles the gap
+export const MAX_BOX = GAPS.length - 1;
+const SOLID_BOX = 3;
+const RECENT_LENGTH = 20;
 
 function distanceToRect({ x, y }, [left, top, width, height]) {
   const dx = Math.max(left - x, 0, x - (left + width));
@@ -17,27 +20,33 @@ export function judgeClick(point, target) {
   return target.rects.some((rect) => distanceToRect(point, rect) <= CLICK_TOLERANCE);
 }
 
-export function weight(stats) {
-  if (!stats || stats.hits + stats.misses === 0) return UNSEEN_WEIGHT;
-  return Math.min(5, Math.max(1, 1 + 2 * stats.misses - stats.hits));
+// turn counts answers on this map. callouts maps a room name to { box, dueAt }; unseen rooms have no entry.
+export function freshProgress() {
+  return { turn: 0, callouts: {}, recent: [] };
 }
 
-// Weighted sample without replacement. stats maps a room name to { hits, misses }.
-// rng returns a number from 0 up to 1, like Math.random.
-export function pickRound(rooms, stats, n = 10, rng = Math.random) {
-  const pool = rooms.filter((room) => room.kind !== 'spawn');
-  const picked = [];
-  while (picked.length < n && pool.length > 0) {
-    const weights = pool.map((room) => weight(stats[room.name]));
-    let roll = rng() * weights.reduce((sum, w) => sum + w, 0);
-    let index = 0;
-    while (index < pool.length - 1 && roll >= weights[index]) {
-      roll -= weights[index];
-      index += 1;
-    }
-    picked.push(pool.splice(index, 1)[0]);
-  }
-  return picked;
+// A correct answer moves a callout up one box, and a miss sends it back to box 0.
+export function recordAnswer(progress, name, correct, ms) {
+  const turn = progress.turn + 1;
+  const seen = progress.callouts[name];
+  const box = correct ? Math.min(MAX_BOX, (seen?.box ?? 0) + 1) : 0;
+  return {
+    turn,
+    callouts: { ...progress.callouts, [name]: { box, dueAt: turn + GAPS[box] } },
+    recent: [...progress.recent, { correct, ms }].slice(-RECENT_LENGTH),
+  };
+}
+
+// Most overdue callout first, then a new one at random, then whichever comes due soonest.
+// lastName is never asked twice in a row. rng returns a number from 0 up to 1, like Math.random.
+export function pickNext(rooms, progress, lastName = null, rng = Math.random) {
+  const askable = rooms.filter((room) => room.kind !== 'spawn');
+  const pool = askable.length > 1 ? askable.filter((room) => room.name !== lastName) : askable;
+  const dueAt = (room) => progress.callouts[room.name].dueAt;
+  const seen = pool.filter((room) => progress.callouts[room.name]).sort((a, b) => dueAt(a) - dueAt(b));
+  if (seen.length > 0 && dueAt(seen[0]) <= progress.turn) return seen[0];
+  const unseen = pool.filter((room) => !progress.callouts[room.name]);
+  return unseen.length > 0 ? unseen[Math.floor(rng() * unseen.length)] : seen[0];
 }
 
 function median(values) {
@@ -46,12 +55,23 @@ function median(values) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-// results is a list of { name, correct, ms }. Weakest means misses first, then the slowest answers.
-export function summarise(results) {
-  const worstFirst = [...results].sort((a, b) => a.correct - b.correct || b.ms - a.ms);
+// The rolling score: share correct and median time over the last 20 answers, or null before the first answer.
+export function rollingScore(recent) {
+  if (recent.length === 0) return null;
   return {
-    accuracy: results.filter((r) => r.correct).length / results.length,
-    medianMs: median(results.map((r) => r.ms)),
-    weakest: worstFirst.slice(0, 3).map((r) => r.name),
+    count: recent.length,
+    accuracy: recent.filter((answer) => answer.correct).length / recent.length,
+    medianMs: median(recent.map((answer) => answer.ms)),
   };
+}
+
+export function memoryCounts(rooms, progress) {
+  const counts = { new: 0, learning: 0, solid: 0 };
+  for (const room of rooms.filter((each) => each.kind !== 'spawn')) {
+    const seen = progress.callouts[room.name];
+    if (!seen) counts.new += 1;
+    else if (seen.box >= SOLID_BOX) counts.solid += 1;
+    else counts.learning += 1;
+  }
+  return counts;
 }

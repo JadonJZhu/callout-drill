@@ -51,14 +51,13 @@ main { display: flex; flex-direction: column; align-items: center; }
 #status { font-size: 16px; }
 #status.good { color: var(--pass); }
 #status.bad { color: var(--accent); }
-#progress { font-size: 16px; opacity: 0.7; }
-#end-buttons { display: flex; gap: 4px; }
-#end-buttons[hidden] { display: none; }
+#memory { font-size: 16px; color: var(--warn); }
+#tally { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 24px; padding-bottom: 8px; font-size: 14px; opacity: 0.8; }
 
-/* Fits the viewport: as wide as the page allows, and short enough to leave room for the header. */
+/* Fits the viewport: as wide as the page allows, and short enough to leave room for the header and tally. */
 #map {
   display: block;
-  width: min(100%, calc(100vh - 116px));
+  width: min(100%, calc(100vh - 144px));
   min-width: 280px;
   aspect-ratio: 1;
   cursor: crosshair;
@@ -72,7 +71,6 @@ main { display: flex; flex-direction: column; align-items: center; }
 #map .spawn .fill { fill: var(--spawn); }
 #map .site .fill { fill: #5a2a35; }
 #map .good .fill { fill: var(--pass); }
-#map .weak .fill { fill: var(--warn); }
 
 #map text {
   fill: var(--text);

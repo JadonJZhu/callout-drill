@@ -1,8 +1,7 @@
 // Page wiring: holds the quiz state, reacts to clicks and keys, and redraws.
-import { judgeClick, pickRound, summarise } from './quiz.js';
+import { MAX_BOX, freshProgress, judgeClick, memoryCounts, pickNext, recordAnswer, rollingScore } from './quiz.js';
 import { mapMarkup, toGrid } from './map.js';
 
-const ROUND_LENGTH = 10;
 const CORRECT_PAUSE_MS = 900;
 const LAST_MAP_KEY = 'callout-drill:last-map';
 
@@ -26,14 +25,12 @@ function save(key, value) {
   }
 }
 
-const statsKey = (map) => `callout-drill:stats:${map.slug}`;
+const progressKey = (map) => `callout-drill:progress:${map.slug}`;
 
 let map = null;
-let stats = {};
-let round = [];
-let results = [];
-let summary = null;
-let phase = 'ask'; // ask, correct (short pause), review (after a miss) or end
+let progress = freshProgress();
+let asked = null;
+let phase = 'ask'; // ask, correct (short pause) or review (after a miss)
 let marker = null;
 let startedAt = 0;
 let elapsedAtPause = 0;
@@ -41,38 +38,48 @@ let studying = false;
 let readAloud = false;
 let nextTimer = null;
 
-const target = () => round[results.length];
-const lastAsked = () => round[results.length - 1];
-
-function draw() {
-  let view = {};
-  if (phase === 'correct') view = { good: lastAsked().name, labels: [lastAsked().name] };
-  if (phase === 'review') view = { good: lastAsked().name, labels: [lastAsked().name], marker };
-  if (phase === 'end') view = { weak: summary.weakest, labels: summary.weakest };
-  if (studying) view = { labels: 'all' };
-  svg.innerHTML = mapMarkup(map, view);
-
-  const inEnd = phase === 'end' && !studying;
-  $('prompt').textContent = studying ? 'Study mode' : promptText();
-  $('status').textContent = studying ? 'Quiz paused' : statusText();
-  $('status').className = !studying && phase === 'correct' ? 'good' : !studying && phase === 'review' ? 'bad' : '';
-  $('progress').textContent = studying || phase === 'end' ? '' : `${phase === 'ask' ? results.length + 1 : results.length} / ${round.length}`;
-  $('end-buttons').hidden = !inEnd;
+function memoryText() {
+  const seen = progress.callouts[asked.name];
+  if (!seen) return 'Memory: new';
+  return `Memory: ${'●'.repeat(seen.box)}${'○'.repeat(MAX_BOX - seen.box)}`;
 }
 
-function promptText() {
-  if (phase === 'end') return `${Math.round(summary.accuracy * 100)}% correct`;
-  return phase === 'ask' ? target().name : lastAsked().name;
+function scoreText() {
+  const score = rollingScore(progress.recent);
+  if (!score) return 'No answers yet';
+  return `Last ${score.count}: ${Math.round(score.accuracy * 100)}% correct, median ${(score.medianMs / 1000).toFixed(1)} s`;
+}
+
+function countsText() {
+  const counts = memoryCounts(map.rooms, progress);
+  return `New ${counts.new}, learning ${counts.learning}, solid ${counts.solid}`;
 }
 
 function statusText() {
-  if (phase === 'correct') return 'Correct';
-  if (phase === 'review') return 'Wrong. Click or press Space to go on.';
-  if (phase === 'end') return `Median time ${(summary.medianMs / 1000).toFixed(1)} s. Weakest: ${summary.weakest.join(', ')}.`;
-  return '';
+  if (phase === 'ask') return '';
+  const back = progress.callouts[asked.name].dueAt - progress.turn;
+  if (phase === 'correct') return `Correct. Back in ${back} answers.`;
+  return `Wrong. Back in ${back} answers. Click or press Space to go on.`;
+}
+
+function draw() {
+  let view = {};
+  if (phase === 'correct') view = { good: asked.name, labels: [asked.name] };
+  if (phase === 'review') view = { good: asked.name, labels: [asked.name], marker };
+  if (studying) view = { labels: 'all' };
+  svg.innerHTML = mapMarkup(map, view);
+
+  $('prompt').textContent = studying ? 'Study mode' : asked.name;
+  $('memory').textContent = studying ? '' : memoryText();
+  $('status').textContent = studying ? 'Quiz paused' : statusText();
+  $('status').className = !studying && phase === 'correct' ? 'good' : !studying && phase === 'review' ? 'bad' : '';
+  $('score').textContent = scoreText();
+  $('counts').textContent = countsText();
 }
 
 function ask() {
+  clearTimeout(nextTimer);
+  asked = pickNext(map.rooms, progress, asked?.name, Math.random);
   phase = 'ask';
   marker = null;
   startedAt = performance.now();
@@ -80,34 +87,17 @@ function ask() {
   draw();
   if (readAloud) {
     speechSynthesis.cancel();
-    speechSynthesis.speak(new SpeechSynthesisUtterance(target().name));
+    speechSynthesis.speak(new SpeechSynthesisUtterance(asked.name));
   }
 }
 
-function startRound(rooms = map.rooms, n = ROUND_LENGTH) {
-  clearTimeout(nextTimer);
-  round = pickRound(rooms, stats, n, Math.random);
-  results = [];
-  ask();
-}
-
-function next() {
-  if (results.length < round.length) return ask();
-  summary = summarise(results);
-  phase = 'end';
-  draw();
-}
-
 function answer(point) {
-  const asked = target();
   const correct = judgeClick(point, asked);
-  results.push({ name: asked.name, correct, ms: performance.now() - startedAt });
-  const entry = stats[asked.name] ?? { hits: 0, misses: 0 };
-  stats[asked.name] = correct ? { ...entry, hits: entry.hits + 1 } : { ...entry, misses: entry.misses + 1 };
-  save(statsKey(map), stats);
+  progress = recordAnswer(progress, asked.name, correct, performance.now() - startedAt);
+  save(progressKey(map), progress);
   if (correct) {
     phase = 'correct';
-    nextTimer = setTimeout(next, CORRECT_PAUSE_MS);
+    nextTimer = setTimeout(ask, CORRECT_PAUSE_MS);
   } else {
     phase = 'review';
     marker = point;
@@ -117,12 +107,13 @@ function answer(point) {
 
 function chooseMap(chosen) {
   map = chosen;
-  stats = load(statsKey(map)) ?? {};
+  progress = load(progressKey(map)) ?? freshProgress();
+  asked = null;
   save(LAST_MAP_KEY, map.slug);
   for (const button of $('chooser').children) {
     button.setAttribute('aria-pressed', button.textContent === map.name);
   }
-  startRound();
+  ask();
 }
 
 function toggleStudy() {
@@ -140,31 +131,28 @@ function toggleReadAloud() {
 }
 
 function reset() {
-  stats = {};
-  save(statsKey(map), stats);
-  startRound();
+  progress = freshProgress();
+  asked = null;
+  save(progressKey(map), progress);
+  ask();
 }
 
 document.addEventListener('click', (event) => {
   if (studying || event.target.closest('button')) return;
-  if (phase === 'review') next();
+  if (phase === 'review') ask();
   else if (phase === 'ask' && event.target.closest('#map')) answer(toGrid(svg, event));
 });
 
 document.addEventListener('keydown', (event) => {
   if (event.code !== 'Space' || phase !== 'review' || studying) return;
   event.preventDefault();
-  next();
+  ask();
 });
 
 $('study').addEventListener('click', toggleStudy);
 $('read-aloud').addEventListener('click', toggleReadAloud);
 $('read-aloud').hidden = !('speechSynthesis' in window);
 $('reset').addEventListener('click', reset);
-$('new-round').addEventListener('click', () => startRound());
-$('drill').addEventListener('click', () => {
-  startRound(map.rooms.filter((room) => summary.weakest.includes(room.name)), summary.weakest.length);
-});
 
 const { maps } = await (await fetch('data/maps.json')).json();
 for (const each of maps) {

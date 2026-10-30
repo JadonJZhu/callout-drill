@@ -12,12 +12,11 @@ function label(room) {
   return `<text x="${x + w / 2}" y="${y + h / 2}">${room.name}</text>`;
 }
 
-// view: { labels: names to label or 'all', good: name lit green, weak: names lit amber,
-//         marker: { x, y } of a wrong click }
+// view: { labels: names to label or 'all', good: name lit green, marker: { x, y } of a wrong click }
 export function mapMarkup(map, view = {}) {
-  const { labels = [], good = null, weak = [], marker = null } = view;
+  const { labels = [], good = null, marker = null } = view;
   const shapes = map.rooms.map((room) => {
-    const lit = room.name === good ? 'good' : weak.includes(room.name) ? 'weak' : room.kind;
+    const lit = room.name === good ? 'good' : room.kind;
     // Outlines first, then fills on top: this hides the lines between a room's own rectangles.
     return `<g class="${lit}">${rects(room, 'edge')}${rects(room, 'fill')}</g>`;
   });

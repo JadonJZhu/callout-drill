@@ -60,42 +60,65 @@ try {
   await page.locator('#map g').first().waitFor();
   const map = maps[0];
 
+  assert.equal(await page.locator('#score').textContent(), 'No answers yet');
+  assert.equal(await page.locator('#memory').textContent(), 'Memory: new');
+  const firstCallout = await page.locator('#prompt').textContent();
   await clickInside(page, map);
   await page.locator('#status', { hasText: 'Correct' }).waitFor();
   assert.equal(await page.locator('#map .good').count(), 1, 'correct room lights green');
-  await page.locator('#progress', { hasText: '2 / 10' }).waitFor();
-  console.log('ok: click inside the target is correct');
+  await page.locator('#score', { hasText: 'Last 1: 100% correct' }).waitFor();
+  assert.equal(await page.locator('#memory').textContent(), 'Memory: ●○○○');
+  await page.waitForFunction((name) => document.getElementById('prompt').textContent !== name, firstCallout);
+  console.log('ok: click inside the target is correct, and the score and memory update');
 
+  const missed = await page.locator('#prompt').textContent();
   await clickFarAway(page, map);
-  await page.locator('#status', { hasText: 'Wrong' }).waitFor();
+  await page.locator('#status', { hasText: 'Wrong. Back in 2 answers' }).waitFor();
   assert.equal(await page.locator('#map .marker').count(), 1, 'wrong click is marked');
   assert.equal(await page.locator('#map .good').count(), 1, 'right room lights green');
   assert.equal(await page.locator('#map text').count(), 1, 'right room is named');
+  await page.locator('#score', { hasText: 'Last 2: 50% correct' }).waitFor();
   await page.keyboard.press('Space');
-  await page.locator('#progress', { hasText: '3 / 10' }).waitFor();
+  await page.waitForFunction(() => document.getElementById('status').textContent === '');
   console.log('ok: click far away is wrong, and Space moves on');
 
-  for (let i = 3; i <= 10; i += 1) {
-    await page.locator('#progress', { hasText: `${i} / 10` }).waitFor();
+  // Answer one correctly at a time, waiting for each new prompt, and note when the miss comes back.
+  async function answerCorrectly() {
+    const name = await page.locator('#prompt').textContent();
     await clickInside(page, map);
     await page.locator('#status', { hasText: 'Correct' }).waitFor();
+    await page.waitForFunction((n) => document.getElementById('prompt').textContent !== n, name);
+    return name;
   }
-  await page.locator('#end-buttons button').first().waitFor();
-  assert.match(await page.locator('#prompt').textContent(), /^90% correct$/);
-  assert.equal(await page.locator('#map .weak').count(), 3, 'three weakest highlighted');
-  console.log('ok: a whole round reaches the end screen');
+  const asked = [];
+  for (let i = 0; i < 2; i += 1) asked.push(await answerCorrectly());
+  assert.equal(await page.locator('#prompt').textContent(), missed, `the miss returns after 2 answers, saw ${asked}`);
+  console.log('ok: a missed callout comes back after 2 answers');
 
-  await page.getByRole('button', { name: 'Drill these' }).click();
-  await page.locator('#progress', { hasText: '1 / 3' }).waitFor();
-  console.log('ok: Drill these starts a round of three');
+  // Past 10 and past the 20-answer window there is no end screen, and the window holds at 20.
+  for (let i = 0; i < 16; i += 1) await answerCorrectly();
+  assert.equal(await page.locator('#end-buttons').count(), 0);
+  await page.locator('#score', { hasText: 'Last 20: 95% correct' }).waitFor();
+  for (let i = 0; i < 2; i += 1) await answerCorrectly();
+  await page.locator('#score', { hasText: 'Last 20: 100% correct' }).waitFor();
+  assert.match(await page.locator('#counts').textContent(), /^New \d+, learning \d+, solid \d+$/);
+  console.log('ok: the drill keeps going and the score rolls over the last 20 answers');
+
+  const score = await page.locator('#score').textContent();
+  await page.reload();
+  await page.locator('#map g').first().waitFor();
+  assert.equal(await page.locator('#score').textContent(), score, 'score survives a reload');
+  console.log('ok: progress is remembered across a reload');
+
+  await page.getByRole('button', { name: 'Reset' }).click();
+  assert.equal(await page.locator('#score').textContent(), 'No answers yet');
+  console.log('ok: Reset clears the score');
 
   await page.getByRole('button', { name: 'Study' }).click();
   assert.equal(await page.locator('#map text').count(), map.rooms.length, 'study shows every label');
-  const before = await page.locator('#progress').textContent();
   await clickGrid(page, 50, 50);
-  assert.equal(await page.locator('#progress').textContent(), before, 'study pauses the quiz');
+  assert.equal(await page.locator('#score').textContent(), 'No answers yet', 'study pauses the quiz');
   await page.getByRole('button', { name: 'Study' }).click();
-  await page.locator('#progress', { hasText: '1 / 3' }).waitFor();
   console.log('ok: Study shows labels and pauses the quiz');
 
   // Last-used map is remembered across a reload.
