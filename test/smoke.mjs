@@ -153,6 +153,8 @@ try {
   assert.ok(tip && tip.x >= 0 && tip.x + tip.width <= 390, 'help fits a phone screen');
   const scroll = await phone.evaluate(() => document.documentElement.scrollWidth);
   assert.ok(scroll <= 390, `page scrolls sideways at 390 px (${scroll})`);
+  await phone.locator('#help').blur(); // the open tooltip covers part of the map
+  await phone.mouse.move(0, 0);
   await clickInside(phone, map);
   await phone.locator('#status', { hasText: 'Correct' }).waitFor();
   console.log('ok: works at 390 px wide with storage blocked');
