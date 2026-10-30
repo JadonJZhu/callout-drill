@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Callout Drill</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Callout Drill</h1>
+    <div id="chooser"></div>
+    <div class="controls">
+      <button id="study" aria-pressed="false">Study</button>
+      <button id="read-aloud" aria-pressed="false" hidden>Read aloud</button>
+      <button id="reset">Reset</button>
+    </div>
+  </header>
+  <main>
+    <div id="panel">
+      <div id="prompt" aria-live="polite"></div>
+      <div id="status"></div>
+      <div id="progress"></div>
+      <div id="end-buttons" hidden>
+        <button id="drill">Drill these</button>
+        <button id="new-round">New round</button>
+      </div>
+    </div>
+    <svg id="map" viewBox="0 0 100 100" aria-label="Map"></svg>
+  </main>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+:root {
+  --bg: #0f1923;
+  --text: #ece8e1;
+  --accent: #ff4655;
+  --pass: #3ddc97;
+  --warn: #f5b841;
+  --room: #223240;
+  --spawn: #33424f;
+  --line: #64747f;
+}
+
+* { box-sizing: border-box; border-radius: 0; }
+
+body {
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+h1 { margin: 0; font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; }
+#chooser, .controls { display: flex; flex-wrap: wrap; gap: 4px; }
+.controls { margin-left: auto; }
+
+button {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--text); }
+button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+main { display: flex; flex-direction: column; align-items: center; }
+
+#panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 16px;
+  min-height: 56px;
+  padding: 8px 0;
+}
+#prompt { font-size: 32px; font-weight: 700; }
+#status { font-size: 16px; }
+#status.good { color: var(--pass); }
+#status.bad { color: var(--accent); }
+#progress { font-size: 16px; opacity: 0.7; }
+#end-buttons { display: flex; gap: 4px; }
+#end-buttons[hidden] { display: none; }
+
+/* Fits the viewport: as wide as the page allows, and short enough to leave room for the header. */
+#map {
+  display: block;
+  width: min(100%, calc(100vh - 116px));
+  min-width: 280px;
+  aspect-ratio: 1;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+#map .edge { fill: none; stroke: var(--line); stroke-width: 0.3; }
+/* Crisp edges stop the outline showing through where a room's own rectangles meet. */
+#map rect { shape-rendering: crispEdges; }
+#map .room .fill { fill: var(--room); }
+#map .spawn .fill { fill: var(--spawn); }
+#map .site .fill { fill: #5a2a35; }
+#map .good .fill { fill: var(--pass); }
+#map .weak .fill { fill: var(--warn); }
+
+#map text {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 0.5;
+  paint-order: stroke;
+  font-size: 2.3px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+#map .marker { fill: var(--accent); stroke: var(--text); stroke-width: 0.25; }
+
+@media (max-width: 600px) {
+  body { padding: 8px 4px; }
+  #prompt { font-size: 26px; }
+  .controls { margin-left: 0; }
+}
