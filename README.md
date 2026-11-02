@@ -35,7 +35,7 @@ Each map is one entry in `data/maps.json`: rooms made of rectangles on a 100 by 
 
 ## Known limits
 
-- Nobody has played these maps. They were designed on paper around routes, chokes and rotations, and only the checks in `test/maps.test.js` and a look at the drawings back them up.
+- Only the author has played these maps so far. They were designed on paper around routes, chokes and rotations, and checked with `test/maps.test.js`.
 - The map is flat. Heaven and Hell are drawn beside the site rather than above and below it.
 - The 1.5 unit margin means a click just over a shared edge can count for the room next door.
 - The gaps, the 20-answer window and the margin are judgment calls, not tested on real learners.
