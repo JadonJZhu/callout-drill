@@ -41,5 +41,3 @@ Each map is one entry in `data/maps.json`: rooms made of rectangles on a 100 by 
 - The gaps, the 20-answer window and the margin are judgment calls, not tested on real learners.
 - Gaps count answers, not days, so they suit one sitting. A real memory schedule would also space callouts across days.
 - Stats stay in one browser. If storage is blocked the drill still works but forgets them.
-
-Built with Claude Code.
